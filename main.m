@@ -17,6 +17,7 @@ alpha=0.2;          % user orientation
 sigma=0.1;          % noise standard deviation
 gamma=0.1;          % NLOS path reflection coefficient
 power_clk=0.1;      % Clock bias uncertainty
+Ptot=10;
 
 %% generate scatter points
 SP=rand(G-1,2)*20-10;      % random points uniformly placed in a 20 m x 20 m area 
@@ -52,4 +53,14 @@ end
 
 T = getTmat(G,posRx,[0,0]',AOA,AOD,SP,h,c);
 Ut=[getResponse(Nt,AOD),(-diag((1:Nt))*1j*pi)*getResponse(Nt,AOD)];
-
+idMat=eye(4*G+2,4*G+2);
+cvx_begin sdp
+    variable lambda(2*G,2*G)
+    variable u(1,2)
+    minimize(u*ones(2,1))
+    subject to
+        [getFIM(Ut*lambda*conj(Ut).', T, h, Ts, H_path, G, N, Nr, Nt, power_clk),idMat(:,1); idMat(1,:),u(1)] ==hermitian_semidefinite(4*G+2);
+        [getFIM(Ut*lambda*conj(Ut).', T, h, Ts, H_path, G, N, Nr, Nt, power_clk),idMat(:,2); idMat(2,:),u(2)] ==hermitian_semidefinite(4*G+2);
+        trace(Xopt)==Ut*lambda*conj(Ut).';
+        lambda==hermitian_semidefinite(2*G);
+cvx_end sdp
