@@ -1,4 +1,4 @@
-function J_ = getFIM(X, T, h, Ts, H_path, G, N, Nr, Nt, power_clk)
+function J_ = getFIM(X, T, h, Ts, H_path, AOD, AOA, G, N, Nr, Nt, power_clk,power_noise)
 % calculate FIM J and transform it to J~ via getTmat function
 
 % calculate derivative of H with respect to eta.
@@ -6,12 +6,12 @@ D=zeros(Nr,Nt,5*G,N);
 for n=1:N
     %derivative with respect to AOD 
     for g=1:G
-        D(:,:,g,n)=H_path(:,:,g,n)*(-diag((1:Nt))*1j*pi);
+        D(:,:,g,n)=H_path(:,:,g,n)*cos(AOD(g))*(-diag((1:Nt))*1j*pi);
     end
 
     %derivative with respect to AOA
     for g=1:G
-        D(:,:,G+g,n)=(-diag((1:Nr))*1j*pi)*H_path(:,:,g,n);
+        D(:,:,G+g,n)=(-diag((1:Nr))*1j*pi)*cos(AOA(g))*H_path(:,:,g,n);
     end
 
     %derivative with respect to h
@@ -28,12 +28,14 @@ end
 J=zeros(5*G,5*G);
 for i=1:5*G
     for j=1:5*G
-        for k=1:N
-            J(i,j)=J(i,j)+real(trace(X*conj(D(:,:,i,n)).'*D(:,:,j,n)));
+            sum=0;
+        for n=1:N
+            sum=sum+real(trace(X*conj(D(:,:,i,n)).'*D(:,:,j,n)));
         end
     end
+    J(i,j)=sum*2/power_noise;
 end
-
-J_=T*J*T';
-J_(4*G+2,4*G+2)=J_(4*G+2,4*G+2)+(1/power_clk);
+Jprior=zeros(4*G+2,4*G+2);
+Jprior(4*G+2,4*G+2)=(1/power_clk);
+J_=T*J*T'+Jprior;
 end
