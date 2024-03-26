@@ -6,12 +6,12 @@ D=zeros(Nr,Nt,5*G,N);
 for n=1:N
     %derivative with respect to AOD 
     for g=1:G
-        D(:,:,g,n)=H_path(:,:,g,n)*cos(AOD(g))*(-diag((1:Nt))*1j*pi);
+        D(:,:,g,n)=H_path(:,:,g,n)*cos(AOD(g))*(-diag((0:Nt-1))*1j*pi);
     end
 
     %derivative with respect to AOA
     for g=1:G
-        D(:,:,G+g,n)=(-diag((1:Nr))*1j*pi)*cos(AOA(g))*H_path(:,:,g,n);
+        D(:,:,G+g,n)=(-diag((0:Nr-1))*1j*pi)*cos(AOA(g))*H_path(:,:,g,n);
     end
 
     %derivative with respect to h
@@ -35,6 +35,7 @@ for i=1:5*G
     end
     J(i,j)=sum*2/power_noise;
 end
+
 Jprior=zeros(4*G+2,4*G+2);
 Jprior(4*G+2,4*G+2)=(1/power_clk);
 J_=T*J*T'+Jprior;
