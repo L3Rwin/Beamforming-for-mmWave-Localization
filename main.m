@@ -3,7 +3,7 @@ clear all
 
 %% System parameters
 G=2;                % number of paths (including LOS)
-Nsc=100;             % number of subcarriers 
+Nsc=300;             % number of subcarriers 
 Nt=32;              % number of TX antennas
 Nr=16;              % number of RX antennas
 c=3e8;              % speed of light meter / s
@@ -11,8 +11,8 @@ Rs=Nsc*12e7;        % total BW in Hz
 Ts=1/Rs;            % sampling period in usL
 fc=28e9;            % frequence of carrier in Hz
 posRx=[25 10]';     % RX (user) position, TX is assumed to be in [0, 0]
-gamma=1e-2;        % NLOS path reflection coefficient
-power_clk=1e-10;     % Clock bias uncertainty
+gamma=1e-1;        % NLOS path reflection coefficient
+power_clk=1e-18  ;     % Clock bias uncertainty
 M=16;               % number of pilot frames 
 Ptot=0.1*M;         % power of beamforming vector
 power_noise=power(10,0.1*(8-30-174))*Nsc*12e7;
@@ -22,10 +22,10 @@ SP=[15,25];
 
 
 %% Compute Channel Parameters for G paths
-alpha=rand(1,1)*2*pi-pi;                                % User Orientation
+alpha=rand(1)*2*pi-pi;                                % User Orientation
 TOA(1)=norm(posRx)/c+(randn(1)*sqrt(power_clk));        % LOS TOA
 AOD(1)=atan2(posRx(2),posRx(1));                        % LOS AOD
-AOA(1)=atan2(posRx(2),posRx(1))-pi-alpha;               % LOS AOA
+AOA(1)=atan2(posRx(2),posRx(1))-alpha;                  % LOS AOA
 for g=1:G-1
     AOD(g+1)=atan2(SP(g,2),SP(g,1));
     AOA(g+1)=atan2(SP(g,2)-posRx(2),SP(g,1)-posRx(1))-alpha;
@@ -33,9 +33,9 @@ for g=1:G-1
 end
 
 h=zeros(1,G);% some high channel gains
-h(1)=exp(1j*2*pi*rand(1,1))*c/(4*pi*fc*norm(posRx));
+h(1)=exp(1j*2*pi*(rand(1,1)-0.5))*c/(4*pi*fc*norm(posRx));
 for g=1:G-1
-    h(g+1)=exp(1j*2*pi*rand(1,1))*gamma*c/(4*pi*fc*(norm(posRx-SP(g,:))+norm(SP(g,:))));
+    h(g+1)=exp(1j*2*pi*(rand(1,1)-0.5))*gamma*c/(4*pi*fc*(norm(posRx-SP(g,:))+norm(SP(g,:))));
 end
 
 %h=10*ones(1,Nsc);
@@ -88,7 +88,7 @@ for n=1:Nsc
 end
  
 %% CVX solve
-%{
+
 cvx_begin sdp
     %cvx_solver mosek
     %cvx_save_prefs
@@ -113,8 +113,7 @@ cvx_begin sdp
         trace(X) == Ptot/Nsc;
         X == semidefinite(Nt);       
 cvx_end 
-
-%}
+%{
 cvx_begin sdp
     %cvx_solver mosek
     %cvx_save_prefs
@@ -135,9 +134,13 @@ cvx_begin sdp
     end
     expression Jj(4*G+2,4*G+2)
     Jj=T*J*T'+Jprior;
+    %Jj=J+Jprior
     subject to
         [Jj,idMat(:,1); idMat(1,:),u(1,1)] == semidefinite(4*G+3);
         [Jj,idMat(:,2); idMat(2,:),u(2,1)] == semidefinite(4*G+3);
         trace(Xopt) == Ptot/Nsc;
         lambda == semidefinite(2*G);
 cvx_end
+%}
+
+PEB = getPEB(Jj,cvx_status)

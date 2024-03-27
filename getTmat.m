@@ -43,24 +43,10 @@ for j=1:G-1
     T(2+2*j:3+2*j,G+1+j)=[-sin(AOA(1+j)); cos(AOA(1+j))]/norm(SP(j,:)'-p);
 end
 
-% solve the partial derivative of h with respect to r
-%{
-for j=1:G-1
-    r=SP(j,:)';
-    t=-h(1+j)*(((r-q)/norm(q-r))+((r-p)/norm(p-r)))/(norm(p-r)+norm(q-r));
-    T(2+2*j:3+2*j,2*G+1+j)=real(t);
-    T(2+2*j:3+2*j,3*G+1+j)=imag(t);
-end
-%}
 % solve the partial derivative of tao with respect to r
 for j=1:G-1
-    r=SP(j,:)';
-    T(2+2*j:3+2*j,4*G+1+j)=(((r-q)/norm(q-r))+((r-p)/norm(p-r)))/c;
+    T(2+2*j:3+2*j,4*G+1+j)=[cos(AOD(1+j))+cos(AOA(1+j));sin(AOD(1+j))+sin(AOA(1+j))]/c;
 end
-
-% solve the partial derivative of theta with respect to h
-%T(2*G+2,1)=(sin(AOD)*tan(AOD)-cos(AOD)*cot(AOD))/real(h(1));
-%T(3*G+2,1)=(sin(AOD)*tan(AOD)-cos(AOD)*cot(AOD))/imag(h(1));
 
 % solve the partial derivative of h with respect to h
 for j=1:G
