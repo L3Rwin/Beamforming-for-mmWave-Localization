@@ -3,7 +3,7 @@ clear all
 
 %% System parameters
 G=2;                % number of paths (including LOS)
-Nsc=300;             % number of subcarriers 
+Nsc=1024;            % number of subcarriers 
 Nt=32;              % number of TX antennas
 Nr=16;              % number of RX antennas
 c=3e8;              % speed of light meter / s
@@ -11,11 +11,14 @@ Rs=Nsc*12e7;        % total BW in Hz
 Ts=1/Rs;            % sampling period in usL
 fc=28e9;            % frequence of carrier in Hz
 posRx=[25 10]';     % RX (user) position, TX is assumed to be in [0, 0]
-gamma=1e-1;        % NLOS path reflection coefficient
-power_clk=1e-18  ;     % Clock bias uncertainty
+gamma=1e-1;         % NLOS path reflection coefficient
+sigma_in_meter=3;
+power_clk=power(sigma_in_meter/c,2);% Clock bias uncertainty
 M=16;               % number of pilot frames 
 Ptot=0.1*M;         % power of beamforming vector
 power_noise=power(10,0.1*(8-30-174))*Nsc*12e7;
+%shrinkFactor=1/power_noise;   % shrink the optimization to avoid large absolute size
+shrinkFactor=1e-1;   % shrink the optimization to avoid large absolute size
 
 %% generate scatter points
 SP=[15,25];      
@@ -57,9 +60,9 @@ end
 
 T = getTmat(G,posRx,[0,0]',AOA,AOD,SP,h,c);
 Ut=[getResponse(Nt,sin(AOD)),(-diag((0:Nt-1))*1j*pi)*getResponse(Nt,sin(AOD))*diag(cos(AOD))]*sqrt(Nt);
-idMat=eye(4*G+2,4*G+2);
+idMat=eye(4*G+2,4*G+2)*power_noise*shrinkFactor;
 Jprior=zeros(4*G+2,4*G+2);
-Jprior(4*G+2,4*G+2)=(1/power_clk);
+Jprior(4*G+2,4*G+2)=(1/power_clk)*power_noise*shrinkFactor;
 
 %% Calculate derivative of H with respect to eta
 
@@ -90,7 +93,7 @@ end
 %% CVX solve
 
 cvx_begin sdp
-    %cvx_solver mosek
+    cvx_solver mosek
     %cvx_save_prefs
     variable u(2,1)
     variable X(Nt,Nt)
@@ -102,7 +105,7 @@ cvx_begin sdp
             for n=1:Nsc
                 sum=sum+real(trace(X*conj(D(:,:,i,n)).'*D(:,:,j,n)));
             end
-            J(i,j)=sum*2/power_noise;
+            J(i,j)=sum*2*shrinkFactor;
         end
     end
     expression Jj(4*G+2,4*G+2)
@@ -110,7 +113,7 @@ cvx_begin sdp
     subject to
         [Jj,idMat(:,1); idMat(1,:),u(1,1)] == semidefinite(4*G+3);
         [Jj,idMat(:,2); idMat(2,:),u(2,1)] == semidefinite(4*G+3);
-        trace(X) == Ptot/Nsc;
+        trace(X) == Ptot*power_noise*shrinkFactor/Nsc;
         X == semidefinite(Nt);       
 cvx_end 
 %{
@@ -143,4 +146,5 @@ cvx_begin sdp
 cvx_end
 %}
 
-PEB = getPEB(Jj,cvx_status)
+PEB = getPEB(Jj/(power_noise*shrinkFactor),'1')
+%saveData2MatFile('clkBiasResults.mat',[sigma_in_meter;PEB],3)
