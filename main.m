@@ -11,14 +11,13 @@ Rs=Nsc*12e7;        % total BW in Hz
 Ts=1/Rs;            % sampling period in usL
 fc=28e9;            % frequence of carrier in Hz
 posRx=[25 10]';     % RX (user) position, TX is assumed to be in [0, 0]
-gamma=1e-1;         % NLOS path reflection coefficient
-sigma_in_meter=3;
+gamma=0.2;         % NLOS path reflection coefficient
+sigma_in_meter=1   ;
 power_clk=power(sigma_in_meter/c,2);% Clock bias uncertainty
 M=16;               % number of pilot frames 
 Ptot=0.1*M;         % power of beamforming vector
 power_noise=power(10,0.1*(8-30-174))*Nsc*12e7;
-%shrinkFactor=1/power_noise;   % shrink the optimization to avoid large absolute size
-shrinkFactor=1e-1;   % shrink the optimization to avoid large absolute size
+shrinkFactor=1;   % shrink the optimization to avoid large absolute size
 
 %% generate scatter points
 SP=[15,25];      
@@ -60,9 +59,9 @@ end
 
 T = getTmat(G,posRx,[0,0]',AOA,AOD,SP,h,c);
 Ut=[getResponse(Nt,sin(AOD)),(-diag((0:Nt-1))*1j*pi)*getResponse(Nt,sin(AOD))*diag(cos(AOD))]*sqrt(Nt);
-idMat=eye(4*G+2,4*G+2)*power_noise*shrinkFactor;
+idMat=eye(4*G+2,4*G+2);
 Jprior=zeros(4*G+2,4*G+2);
-Jprior(4*G+2,4*G+2)=(1/power_clk)*power_noise*shrinkFactor;
+Jprior(4*G+2,4*G+2)=1/power_clk;
 
 %% Calculate derivative of H with respect to eta
 
@@ -92,30 +91,9 @@ end
  
 %% CVX solve
 
-cvx_begin sdp
-    cvx_solver mosek
-    %cvx_save_prefs
-    variable u(2,1)
-    variable X(Nt,Nt)
-    minimize(ones(1,2)*u)
-    expression J(5*G,5*G)
-    for i=1:5*G
-        for j=1:5*G
-            sum=0;
-            for n=1:Nsc
-                sum=sum+real(trace(X*conj(D(:,:,i,n)).'*D(:,:,j,n)));
-            end
-            J(i,j)=sum*2*shrinkFactor;
-        end
-    end
-    expression Jj(4*G+2,4*G+2)
-    Jj=T*J*T'+Jprior;
-    subject to
-        [Jj,idMat(:,1); idMat(1,:),u(1,1)] == semidefinite(4*G+3);
-        [Jj,idMat(:,2); idMat(2,:),u(2,1)] == semidefinite(4*G+3);
-        trace(X) == Ptot*power_noise*shrinkFactor/Nsc;
-        X == semidefinite(Nt);       
-cvx_end 
+%[PEB, status]=cvx_run_Mosek(D,Jprior,T,idMat,power_noise,shrinkFactor, G, Nt, Nsc, Ptot);
+[PEB, status]=cvx_run(D,Jprior,T,idMat,power_noise, G, Nt, Nsc, Ptot);
+
 %{
 cvx_begin sdp
     %cvx_solver mosek
@@ -145,6 +123,4 @@ cvx_begin sdp
         lambda == semidefinite(2*G);
 cvx_end
 %}
-
-PEB = getPEB(Jj/(power_noise*shrinkFactor),'1')
 %saveData2MatFile('clkBiasResults.mat',[sigma_in_meter;PEB],3)

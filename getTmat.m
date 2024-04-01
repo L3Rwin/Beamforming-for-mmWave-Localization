@@ -11,18 +11,6 @@ for j=1:G-1
     T(1:2,G+1+j)=[sin(AOA(1+j)); -cos(AOA(1+j))]/norm(SP(j,:)'-p);
 end
 
-% solve the partial derivative of h with respect to p
-%{
-t= -h(1)*(p-q)/power(norm(p-q),2);
-T(1:2,2*G+1)=real(t);
-T(1:2,3*G+1)=imag(t);
-for j=1:G-1
-    r=SP(j,:)';
-    t=-h(1+j)*(p-r)/((norm(p-r)+norm(q-r))*norm(p-r));
-    T(1:2,2*G+1+j)=real(t);
-    T(1:2,3*G+1+j)=imag(t);
-end
-%}
 % solve the partial derivative of tao with respect to p
 T(1:2,4*G+1)=[cos(AOD(1)); sin(AOD(1))]/c;
 for j=1:G-1
@@ -52,8 +40,6 @@ end
 for j=1:G
     T(2*G+1+j,2*G+j)=1;
     T(3*G+1+j,3*G+j)=1;
-    %T(3*G+1+j,2*G+j)=real(h(j))/imag(h(j));
-    %T(2*G+1+j,3*G+j)=imag(h(j))/real(h(j));
 end
 
 % solve the partial derivative of tao with respect to delta t
